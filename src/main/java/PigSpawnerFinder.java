@@ -12,7 +12,6 @@ import java.util.ArrayList;
 
 public class PigSpawnerFinder {
     private static final ImmutableSet<Integer> BADLANDS = ImmutableSet.of(Biome.BADLANDS.getId(), Biome.BADLANDS_PLATEAU.getId(), Biome.ERODED_BADLANDS.getId(), Biome.MODIFIED_BADLANDS_PLATEAU.getId(), Biome.MODIFIED_WOODED_BADLANDS_PLATEAU.getId(), Biome.WOODED_BADLANDS_PLATEAU.getId());
-    public static ArrayList<Long> seedlist = new ArrayList<Long>();
 
     private static void processStructureSeed(long structureSeed, int centerChunkX, int centerChunkZ, int spawnerX, int spawnerY, int spawnerZ) {
         OverworldBiomeSource biomeSource;
@@ -53,8 +52,6 @@ public class PigSpawnerFinder {
             if(!good) continue;
 
             System.out.println("Good nearby height: " + worldSeed + " " + spawnerX + " " + spawnerY + " " + spawnerZ);
-            seedlist.add(worldSeed);
-            new QuadWitchHutPosFinder().run();
         }
     }
 
@@ -188,54 +185,15 @@ public class PigSpawnerFinder {
                         }
                     }
                 }
-//                System.out.println(piecesBeforeSpawner);
+
                 if(piecesBeforeSpawner != 0) continue;
 
-                //System.out.println("Carver: " + carverSeed + " Spawner: " + spawner.x + " " + spawner.y + " " + spawner.z + " " + spawner.direction + " " + spawner.length);
                 processCarverSeed(carverSeed, spawner.x, spawner.y, spawner.z, spawner.direction, spawner.length);
             }
             spawners.clear();
         }
     }
-
-    //Good nearby height: -5364344938332933183 2137 59 9   132 5
-    //Good nearby height: -2211262249220164671 2137 59 9   132 5
-    //Good nearby height: -288506683309673535 2137 59 9   132 5
-
-    //Good nearby height: 8430151434447953355 2153 59 521   133 37
-    //Good nearby height: -7959854984436834869 2153 59 521   133 37
-
     public static void main(String[] args) {
         findCarvers();
-//        processCarverSeed(601266, -56, 59, 57, Direction.WEST, 3);
-//        processStructureSeed(278134859145650L, 48640, 13056, 778185, 59, 208953);
     }
-
-    //CLOSEST QUINTUPLE
-    //Good nearby height: -2464334185163669257 6105 58 18969
-
-    //CLOSE QUINTUPLE
-    //Good nearby height: 5520728315301704325 -18471 59 -15335
-    //Good nearby height: 3830679590341196603 -28663 58 -13255
-    //Good nearby height: -8506231491360895631 29209 59 -25655
-    //Good nearby height: 5080722595853041613 -21463 59 -11255
-    //Good nearby height: 8558345933113196493 -21463 59 -11255
-    //Good nearby height: 6432693858766937472 -16423 58 -10807
-    //Good nearby height: -7777570340470530688 -16423 58 -10807
-    //Good nearby height: -8964393524132048897 16409 58 12761
-
-    //FAR QUINTUPLE:
-    //Good nearby height: 6890415600180670898 5410761 59 3883065
-    //Good nearby height: -2732087953649815118 5410761 59 3883065
-    //Good nearby height: 8677973874565685682 6967241 59 2375737
-    //Good nearby height: -3586538451014376014 7069641 59 5009465
-    //Good nearby height: 5801462954023181234 7438281 59 4223033
-    //Good nearby height: 2686338580661244338 8396745 59 1593401
-    //Good nearby height: -3433007311031115598 9867209 59 7831609
-    //Good nearby height: 13313117911499698 10883017 59 3985465
-    //Good nearby height: -5281794143969360974 10883017 59 3985465
-    //Good nearby height: -3230123038725389390 10883017 59 3985465
-    //Good nearby height: -731751145441606734 10883017 59 3985465
-    //Good nearby height: 2688172202216015794 11648969 59 6508601
-    //Good nearby height: -1359156487906506830 11648969 59 6508601
 }

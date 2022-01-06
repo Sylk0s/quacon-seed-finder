@@ -25,8 +25,7 @@ public class QuadWitchHutPosFinder implements Runnable {
 
     @Override
     public void run() {
-        long worldSeed = PigSpawnerFinder.seedlist.get(0);
-        PigSpawnerFinder.seedlist.remove(0);
+        long worldSeed = 0;
         int regionSize=CURRENT_STRUCTURE.getSpacing()*16;
         int numberRegions=WORLD_SIZE/regionSize;
         BiomeSource biomeSource = BiomeSource.of(CURRENT_STRUCTURE.getValidDimension(),VERSION, worldSeed);
