@@ -1,4 +1,12 @@
 import com.google.common.collect.ImmutableSet;
+import com.seedfinding.mcbiome.source.BiomeSource;
+import com.seedfinding.mccore.rand.seed.RegionSeed;
+import com.seedfinding.mccore.util.pos.CPos;
+import com.seedfinding.mccore.util.pos.RPos;
+import com.seedfinding.mcfeature.structure.RegionStructure;
+import com.seedfinding.mcfeature.structure.SwampHut;
+import com.seedfinding.mcmath.component.vector.QVector;
+import com.seedfinding.mcreversal.Lattice2D;
 import kaptainwutax.biomeutils.Biome;
 import kaptainwutax.biomeutils.source.OverworldBiomeSource;
 import kaptainwutax.biomeutils.terrain.OverworldChunkGenerator;
@@ -8,10 +16,57 @@ import kaptainwutax.seedutils.mc.MCVersion;
 import reverser.CarverReverser;
 import spiderfinder.*;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 public class PigSpawnerFinder {
     private static final ImmutableSet<Integer> BADLANDS = ImmutableSet.of(Biome.BADLANDS.getId(), Biome.BADLANDS_PLATEAU.getId(), Biome.ERODED_BADLANDS.getId(), Biome.MODIFIED_BADLANDS_PLATEAU.getId(), Biome.MODIFIED_WOODED_BADLANDS_PLATEAU.getId(), Biome.WOODED_BADLANDS_PLATEAU.getId());
+
+    private static final long[] REGION_SEEDS = getQuadRegionSeeds();
+    public static final com.seedfinding.mccore.version.MCVersion VERSION = com.seedfinding.mccore.version.MCVersion.v1_17;
+    public static final SwampHut SWAMP_HUT= new SwampHut(VERSION);
+    private static final Lattice2D REGION_LATTICE = new Lattice2D(RegionSeed.A, RegionSeed.B, 1L << 48);
+
+    public static final RegionStructure<?, ?> CURRENT_STRUCTURE = SWAMP_HUT;
+    public static final int WORLD_SIZE=30_000_000;
+
+    private static void checkForQWH(long worldSeed) {
+        int regionSize=CURRENT_STRUCTURE.getSpacing()*16;
+        // int numberRegions=WORLD_SIZE/regionSize; // uncomment for whole world check
+        int numberRegions = 10; // change for a closer check
+        BiomeSource biomeSource = BiomeSource.of(CURRENT_STRUCTURE.getValidDimension(),VERSION, worldSeed);
+        for (long regionSeed:REGION_SEEDS){
+            for(QVector solution : REGION_LATTICE.findSolutionsInBox(regionSeed - worldSeed - CURRENT_STRUCTURE.getSalt(), -numberRegions, -numberRegions, numberRegions, numberRegions)) {
+                int regX=solution.get(0).intValue();
+                int regZ=solution.get(1).intValue();
+                if(!checkBiomes(biomeSource, regX,regZ, CURRENT_STRUCTURE)) continue;
+                System.out.println(new RPos(regX,regZ,regionSize).toBlockPos());
+            }
+        }
+    }
+
+    private static long[] getQuadRegionSeeds() {
+        InputStream stream = PigSpawnerFinder.class.getResourceAsStream("/regionSeeds.txt");
+        return new BufferedReader(new InputStreamReader(Objects.requireNonNull(stream)))
+                .lines().mapToLong(Long::parseLong).toArray();
+    }
+
+    private static boolean checkBiomes(BiomeSource source, int regX, int regZ, RegionStructure<?,?> structure) {
+        if(checkStructure(source, regX,regZ, structure)) return false;
+        if(checkStructure(source,regX-1, regZ, structure)) return false;
+        if(checkStructure(source, regX, regZ-1, structure)) return false;
+        if(checkStructure(source, regX-1, regZ-1, structure)) return false;
+        return true;
+    }
+
+    private static boolean checkStructure(BiomeSource source, int regX, int regZ, RegionStructure<?,?> structure) {
+        CPos chunk = structure.getInRegion(source.getWorldSeed(), regX, regZ, new com.seedfinding.mccore.rand.ChunkRand());
+        return !structure.canSpawn(chunk.getX(), chunk.getZ(), source);
+    }
 
     private static void processStructureSeed(long structureSeed, int centerChunkX, int centerChunkZ, int spawnerX, int spawnerY, int spawnerZ) {
         OverworldBiomeSource biomeSource;
@@ -51,7 +106,11 @@ public class PigSpawnerFinder {
             }
             if(!good) continue;
 
+            System.out.println("-=-=-=-=-=-=-=-=-=-=-");
             System.out.println("Good nearby height: " + worldSeed + " " + spawnerX + " " + spawnerY + " " + spawnerZ);
+
+            checkForQWH(worldSeed);
+
         }
     }
 
@@ -153,47 +212,62 @@ public class PigSpawnerFinder {
         }
     }
 
-    private static void findCarvers() {
+    private static void findCarvers(long carverSeed) {
         ArrayList<Spawner> spawners = new ArrayList<>();
 
-        for(long carverSeed = 1796831724L; carverSeed < (1L << 48); carverSeed++) {
-            ArrayList<StructurePiece> pieces = MineshaftGenerator.generateForChunk(carverSeed, 0, 0, true, spawners);
-            for(Spawner spawner : spawners) {
+        ArrayList<StructurePiece> pieces = MineshaftGenerator.generateForChunk(carverSeed, 0, 0, true, spawners);
+        for(Spawner spawner : spawners) {
                 //Check spawner height
-                if(spawner.y < 58 || spawner.y > 59) continue;
+            if(spawner.y < 58 || spawner.y > 59) continue;
 
                 //Check if it can be at 9 9 but not near supports
-                int offsetChunkX = spawner.x >> 4;
-                int offsetChunkZ = spawner.z >> 4;
-                int spawnerOffsetX = spawner.x - (offsetChunkX << 4);
-                int spawnerOffsetZ = spawner.z - (offsetChunkZ << 4);
-                if(!(spawner.direction.axis == Direction.Axis.X && spawnerOffsetZ == 9 && (spawnerOffsetX == 8 || spawnerOffsetX == 10)) && !(spawner.direction.axis == Direction.Axis.Z && spawnerOffsetX == 9 && (spawnerOffsetZ == 8 || spawnerOffsetZ == 10))) continue;
+            int offsetChunkX = spawner.x >> 4;
+            int offsetChunkZ = spawner.z >> 4;
+            int spawnerOffsetX = spawner.x - (offsetChunkX << 4);
+            int spawnerOffsetZ = spawner.z - (offsetChunkZ << 4);
+            if(!(spawner.direction.axis == Direction.Axis.X && spawnerOffsetZ == 9 && (spawnerOffsetX == 8 || spawnerOffsetX == 10)) && !(spawner.direction.axis == Direction.Axis.Z && spawnerOffsetX == 9 && (spawnerOffsetZ == 8 || spawnerOffsetZ == 10))) continue;
 
                 //Check if it isn't too close to mesa
-                if(Math.abs(offsetChunkX) < 2 && Math.abs(offsetChunkZ) < 2) continue;
+            if(Math.abs(offsetChunkX) < 2 && Math.abs(offsetChunkZ) < 2) continue;
 
                 //Check if there are no other corridors in the same chunk generated before the one with the spawner (meaning no random calls before our corridor)
-                int piecesBeforeSpawner = 0;
-                BlockBox spawnerBox = new BlockBox(spawner.x, spawner.y, spawner.z, spawner.x, spawner.y, spawner.z);
-                BlockBox chunk = new BlockBox(offsetChunkX << 4, 0, offsetChunkZ << 4, (offsetChunkX << 4) + 15, 255, (offsetChunkZ << 4) + 15);
-                for(StructurePiece piece : pieces) {
-                    if(piece.boundingBox.intersects(chunk)) {
-                        if(piece.boundingBox.intersects(spawnerBox)) break;
-                        else if (piece instanceof MineshaftGenerator.MineshaftCorridor) {
-                            piecesBeforeSpawner = 1;
-                            break;
-                        }
+            int piecesBeforeSpawner = 0;
+            BlockBox spawnerBox = new BlockBox(spawner.x, spawner.y, spawner.z, spawner.x, spawner.y, spawner.z);
+            BlockBox chunk = new BlockBox(offsetChunkX << 4, 0, offsetChunkZ << 4, (offsetChunkX << 4) + 15, 255, (offsetChunkZ << 4) + 15);
+            for(StructurePiece piece : pieces) {
+                if(piece.boundingBox.intersects(chunk)) {
+                    if(piece.boundingBox.intersects(spawnerBox)) break;
+                    else if (piece instanceof MineshaftGenerator.MineshaftCorridor) {
+                        piecesBeforeSpawner = 1;
+                        break;
                     }
                 }
-
-                if(piecesBeforeSpawner != 0) continue;
-
-                processCarverSeed(carverSeed, spawner.x, spawner.y, spawner.z, spawner.direction, spawner.length);
             }
-            spawners.clear();
+
+            if(piecesBeforeSpawner != 0) continue;
+
+            processCarverSeed(carverSeed, spawner.x, spawner.y, spawner.z, spawner.direction, spawner.length);
         }
+        spawners.clear();
     }
+
+    static long currentStep = 1796831724L;
+    static final int BATCH_SIZE = 100000000; // this seems to be the most 0s i can put without crashing stuff
+
+
+    public static List<Long> generateBatch() {
+        List<Long> batch = new ArrayList<>();
+        for(long i = 0; i < BATCH_SIZE; i++) {
+            batch.add(currentStep+i);
+        }
+        currentStep += BATCH_SIZE;
+        return batch;
+    }
+
     public static void main(String[] args) {
-        findCarvers();
+        while(currentStep <= (1L<<48)) {
+            generateBatch().parallelStream().forEach(PigSpawnerFinder::findCarvers);
+        }
+        System.out.println("This is all the seeds possible. You have reached the end. Congratulations!");
     }
 }
