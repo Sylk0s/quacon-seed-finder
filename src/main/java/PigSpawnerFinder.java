@@ -27,24 +27,24 @@ public class PigSpawnerFinder {
     private static final ImmutableSet<Integer> BADLANDS = ImmutableSet.of(Biome.BADLANDS.getId(), Biome.BADLANDS_PLATEAU.getId(), Biome.ERODED_BADLANDS.getId(), Biome.MODIFIED_BADLANDS_PLATEAU.getId(), Biome.MODIFIED_WOODED_BADLANDS_PLATEAU.getId(), Biome.WOODED_BADLANDS_PLATEAU.getId());
 
     private static final long[] REGION_SEEDS = getQuadRegionSeeds();
-    public static final com.seedfinding.mccore.version.MCVersion VERSION = com.seedfinding.mccore.version.MCVersion.v1_17;
+    public static final com.seedfinding.mccore.version.MCVersion VERSION = com.seedfinding.mccore.version.MCVersion.v1_16_5;
     public static final SwampHut SWAMP_HUT= new SwampHut(VERSION);
     private static final Lattice2D REGION_LATTICE = new Lattice2D(RegionSeed.A, RegionSeed.B, 1L << 48);
 
     public static final RegionStructure<?, ?> CURRENT_STRUCTURE = SWAMP_HUT;
     public static final int WORLD_SIZE=30_000_000;
 
-    private static void checkForQWH(long worldSeed) {
+    private static void checkForQWH(long worldSeed, String spawnStr) {
         int regionSize=CURRENT_STRUCTURE.getSpacing()*16;
-        // int numberRegions=WORLD_SIZE/regionSize; // uncomment for whole world check
-        int numberRegions = 10; // change for a closer check
-        BiomeSource biomeSource = BiomeSource.of(CURRENT_STRUCTURE.getValidDimension(),VERSION, worldSeed);
+        int numberRegions=WORLD_SIZE/regionSize; // uncomment for whole world check
+          BiomeSource biomeSource = BiomeSource.of(CURRENT_STRUCTURE.getValidDimension(),VERSION, worldSeed);
         for (long regionSeed:REGION_SEEDS){
             for(QVector solution : REGION_LATTICE.findSolutionsInBox(regionSeed - worldSeed - CURRENT_STRUCTURE.getSalt(), -numberRegions, -numberRegions, numberRegions, numberRegions)) {
                 int regX=solution.get(0).intValue();
                 int regZ=solution.get(1).intValue();
                 if(!checkBiomes(biomeSource, regX,regZ, CURRENT_STRUCTURE)) continue;
-                System.out.println(new RPos(regX,regZ,regionSize).toBlockPos());
+                System.out.println("-=-=-=-=-=-=-=-=-=-=-");
+                System.out.println("QWH: " + new RPos(regX,regZ,regionSize).toBlockPos().toString() + " Seed: " + worldSeed + " Spawner: " + spawnStr);
             }
         }
     }
@@ -106,10 +106,12 @@ public class PigSpawnerFinder {
             }
             if(!good) continue;
 
-            System.out.println("-=-=-=-=-=-=-=-=-=-=-");
-            System.out.println("Good nearby height: " + worldSeed + " " + spawnerX + " " + spawnerY + " " + spawnerZ);
+            //System.out.println("-=-=-=-=-=-=-=-=-=-=-");
+            //System.out.println("Good nearby height: " + worldSeed + " " + spawnerX + " " + spawnerY + " " + spawnerZ);
 
-            checkForQWH(worldSeed);
+            String spawnStr = spawnerX + " " + spawnerY + " " + spawnerZ;
+
+            checkForQWH(worldSeed, spawnStr);
 
         }
     }
@@ -251,8 +253,9 @@ public class PigSpawnerFinder {
         spawners.clear();
     }
 
-    static long currentStep = 1796831724L;
+    static long currentStep = 0L; //1796831724L;
     static final int BATCH_SIZE = 100000000; // this seems to be the most 0s i can put without crashing stuff
+    // 100,000,000
 
 
     public static List<Long> generateBatch() {
@@ -261,12 +264,16 @@ public class PigSpawnerFinder {
             batch.add(currentStep+i);
         }
         currentStep += BATCH_SIZE;
+        if (currentStep%1000000000 == 0) // should possibly print out something every 30 minutes
+            System.out.println(currentStep);
         return batch;
     }
 
     public static void main(String[] args) {
+        if (args[0] != null)
+            currentStep = Long.parseLong(args[0]);
         while(currentStep <= (1L<<48)) {
-            generateBatch().parallelStream().forEach(PigSpawnerFinder::findCarvers);
+           generateBatch().parallelStream().forEach(PigSpawnerFinder::findCarvers);
         }
         System.out.println("This is all the seeds possible. You have reached the end. Congratulations!");
     }
